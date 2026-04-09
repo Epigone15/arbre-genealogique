@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Outil interactif pour créer et visualiser un arbre généalogique avec des barres de parents." />
+  <title>Arbre Généalogique — Barres Parents</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #0f172a;
+      --accent: #3b82f6;
+      --muted: #94a3b8;
+      --danger: #ef4444;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: Inter, Segoe UI, Arial, sans-serif;
+      background: var(--bg);
+      color: #e6eef8;
+      overflow: hidden;
+    }
+
+    #toolbar {
+      position: fixed;
+      left: 12px;
+      top: 12px;
+      z-index: 60;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    button {
+      background: linear-gradient(180deg, var(--panel), #071028);
+      border: 1px solid rgba(255, 255, 255, 0.03);
+      color: #e6eef8;
+      padding: 8px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    #status {
+      margin-left: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    #viewport {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+    }
+
+    #scene {
+      position: absolute;
+      left: 0;
+      top: 0;
+      transform-origin: 0 0;
+      will-change: transform;
+    }
+
+    #canvas {
+      position: relative;
+      width: 3000px;
+      height: 2000px;
+    }
+
+    svg {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: visible;
+    }
+
+    .node {
+      position: absolute;
+      min-width: 140px;
+      padding: 8px;
+      border-radius: 10px;
+      background: linear-gradient(180deg, #071026, #0b1220);
+      border: 2px solid rgba(255, 255, 255, 0.03);
+      box-shadow: 0 8px 20px rgba(2, 6, 23, 0.6);
+      cursor: grab;
+      user-select: none;
+    }
+
+    .node.selected {
+      border-color: var(--accent);
+      box-shadow: 0 10px 30px rgba(59, 130, 246, 0.12);
+    }
+
+    .node .head {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .node img {
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      object-fit: cover;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .node input.name {
+      background: transparent;
+      border: none;
+      color: #e6eef8;
+      font-weight: 600;
+      text-align: center;
+      width: 100%;
+    }
+
+    .node .meta {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+      margin-top: 4px;
+    }
+
+    .node .actions {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      margin-top: 6px;
+    }
+
+    .node .actions button {
+      padding: 6px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .parent-bar {
+      stroke: #9fbffb;
+      stroke-width: 4;
+      stroke-linecap: round;
+    }
+
+    .connector {
+      stroke: #9fbffb;
+      stroke-width: 2;
+      stroke-linecap: round;
+    }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <button id="add">Ajouter</button>
+    <button id="export">Exporter JSON</button>
+    <button id="import">Importer JSON</button>
+    <span id="status">Prêt</span>
+  </div>
+  <div id="viewport">
+    <div id="scene">
+      <div id="canvas"></div>
+      <svg id="connections"></svg>
+    </div>
+  </div>
+
+  <script>
+    // Code JavaScript original (inchangé)
+    let data = [];
+    let idCounter = 1;
+    let selectedNode = null;
+    let offsetX, offsetY, isDragging = false;
+    let scale = 1, translateX = 0, translateY = 0;
+
+    const canvas = document.getElementById('canvas');
+    const connections = document.getElementById('connections');
+    const statusEl = document.getElementById('status');
+
+    document.getElementById('add').onclick = () => {
+      const name = prompt('Nom de la personne :');
+      if (name) {
+        addPerson({ name, x: 300, y: 200 });
+        render();
+      }
+    };
+
+    document.getElementById('export').onclick = exportJSON;
+    document.getElementById('import').onclick = importJSON;
+
+    function get(id) {
+      return data.find(p => p.id === id);
+    }
+
+    function addPerson({ name, x, y, parents = [] }) {
+      const person = {
+        id: idCounter++,
+        name,
+        x,
+        y,
+        parents,
+        children: [],
+        spouse: null,
+        photo: null
+      };
+      data.push(person);
+      saveToStorage();
+      return person;
+    }
+
+    function saveToStorage() {
+      localStorage.setItem('arbreData', JSON.stringify(data));
+    }
+
+    function loadFromStorage() {
+      const saved = localStorage.getItem('arbreData');
+      if (saved) {
+        data = JSON.parse(saved);
+        idCounter = data.reduce((max, p) => Math.max(max, p.id), 0) + 1;
+      }
+    }
+
+    function render() {
+      canvas.innerHTML = '';
+      connections.innerHTML = '';
+
+      data.forEach(person => {
+        const node = document.createElement('div');
+        node.className = `node${selectedNode === person.id ? ' selected' : ''}`;
+        node.style.left = `${person.x}px`;
+        node.style.top = `${person.y}px`;
+
+        node.innerHTML = `
+          <div class="head">
+            ${person.photo ? `<img src="${person.photo}" />` : '<div style="width:36px;height:36px;border-radius:6px;background:var(--panel)"></div>'}
+            <input class="name" value="${person.name}" />
+          </div>
+          <div class="meta">ID: ${person.id}</div>
+          <div class="actions">
+            <button onclick="selectParent(${person.id})">Parents</button>
+            <button onclick="uploadPhoto(${person.id})">Photo</button>
+          </div>
+        `;
+
+        node.onmousedown = (e) => {
+          if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') {
+            selectedNode = person.id;
+            offsetX = e.clientX - person.x;
+            offsetY = e.clientY - person.y;
+            isDragging = true;
+            render();
+          }
+        };
+
+        canvas.appendChild(node);
+      });
+
+      // Dessiner les connexions
+      data.forEach(person => {
+        if (person.spouse) {
+          const spouse = get(person.spouse);
+          if (spouse) {
+            const bar = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            bar.setAttribute('class', 'parent-bar');
+            bar.setAttribute('x1', person.x + 70);
+            bar.setAttribute('y1', person.y + 40);
+            bar.setAttribute('x2', spouse.x + 70);
+            bar.setAttribute('y2', spouse.y + 40);
+            connections.appendChild(bar);
+
+            person.children.forEach(childId => {
+              const child = get(childId);
+              if (child) {
+                const connector = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                connector.setAttribute('class', 'connector');
+                connector.setAttribute('x1', (person.x + spouse.x) / 2 + 70);
+                connector.setAttribute('y1', (person.y + spouse.y) / 2 + 40);
+                connector.setAttribute('x2', child.x + 70);
+                connector.setAttribute('y2', child.y);
+                connections.appendChild(connector);
+              }
+            });
+          }
+        }
+      });
+    }
+
+    function selectParent(id) {
+      const person = get(id);
+      if (!person) return;
+
+      const parentIds = prompt('IDs des parents (séparés par des virgules) :')?.split(',').map(Number);
+      if (!parentIds) return;
+
+      person.parents = parentIds;
+
+      parentIds.forEach(parentId => {
+        const parent = get(parentId);
+        if (parent && !parent.children.includes(id)) {
+          parent.children.push(id);
+        }
+      });
+
+      saveToStorage();
+      render();
+    }
+
+    function exportJSON() {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'arbre_bar_parents.json';
+      a.click();
+    }
+
+    function importJSON() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'application/json';
+      input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          try {
+            const parsed = JSON.parse(ev.target.result);
+            if (Array.isArray(parsed)) {
+              data = parsed;
+              idCounter = data.reduce((max, p) => Math.max(max, p.id), 0) + 1;
+              saveToStorage();
+              render();
+            } else {
+              alert('Fichier invalide');
+            }
+          } catch (err) {
+            alert('Erreur lecture JSON');
+          }
+        };
+        reader.readAsText(file);
+      };
+      input.click();
+    }
+
+    function uploadPhoto(pid) {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const person = get(pid);
+          if (person) {
+            person.photo = ev.target.result;
+            saveToStorage();
+            render();
+          }
+        };
+        reader.readAsDataURL(file);
+      };
+      input.click();
+    }
+
+    (function seed() {
+      loadFromStorage();
+      if (data.length === 0) {
+        const alice = addPerson({ name: 'Alice', x: 200, y: 80 });
+        const bob = addPerson({ name: 'Bob', x: 360, y: 80 });
+        alice.spouse = bob.id;
+        bob.spouse = alice.id;
+        const charlie = addPerson({ name: 'Charlie', x: 260, y: 240, parents: [alice.id, bob.id] });
+        alice.children.push(charlie.id);
+        bob.children.push(charlie.id);
+
+        const diane = addPerson({ name: 'Diane', x: 520, y: 80 });
+        const eve = addPerson({ name: 'Eve', x: 680, y: 80 });
+        diane.spouse = eve.id;
+        eve.spouse = diane.id;
+        const fils = addPerson({ name: 'Fils', x: 600, y: 240, parents: [diane.id, eve.id] });
+        diane.children.push(fils.id);
+        eve.children.push(fils.id);
+
+        saveToStorage();
+      }
+      render();
+    })();
+  </script>
+</body>
+</html>
