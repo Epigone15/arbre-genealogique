@@ -1,396 +1,427 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Outil interactif pour créer et visualiser un arbre généalogique avec des barres de parents." />
-  <title>Arbre Généalogique — Barres Parents</title>
-  <style>
-    :root {
-      --bg: #0b1220;
-      --panel: #0f172a;
-      --accent: #3b82f6;
-      --muted: #94a3b8;
-      --danger: #ef4444;
-    }
-
-    * { box-sizing: border-box; }
-
-    html, body {
-      height: 100%;
-      margin: 0;
-      font-family: Inter, Segoe UI, Arial, sans-serif;
-      background: var(--bg);
-      color: #e6eef8;
-      overflow: hidden;
-    }
-
-    #toolbar {
-      position: fixed;
-      left: 12px;
-      top: 12px;
-      z-index: 60;
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    button {
-      background: linear-gradient(180deg, var(--panel), #071028);
-      border: 1px solid rgba(255, 255, 255, 0.03);
-      color: #e6eef8;
-      padding: 8px 10px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 13px;
-    }
-
-    #status {
-      margin-left: 8px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    #viewport {
-      position: fixed;
-      inset: 0;
-      overflow: hidden;
-    }
-
-    #scene {
-      position: absolute;
-      left: 0;
-      top: 0;
-      transform-origin: 0 0;
-      will-change: transform;
-    }
-
-    #canvas {
-      position: relative;
-      width: 3000px;
-      height: 2000px;
-    }
-
-    svg {
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      overflow: visible;
-    }
-
-    .node {
-      position: absolute;
-      min-width: 140px;
-      padding: 8px;
-      border-radius: 10px;
-      background: linear-gradient(180deg, #071026, #0b1220);
-      border: 2px solid rgba(255, 255, 255, 0.03);
-      box-shadow: 0 8px 20px rgba(2, 6, 23, 0.6);
-      cursor: grab;
-      user-select: none;
-    }
-
-    .node.selected {
-      border-color: var(--accent);
-      box-shadow: 0 10px 30px rgba(59, 130, 246, 0.12);
-    }
-
-    .node .head {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .node img {
-      width: 36px;
-      height: 36px;
-      border-radius: 6px;
-      object-fit: cover;
-      border: 1px solid rgba(255, 255, 255, 0.04);
-    }
-
-    .node input.name {
-      background: transparent;
-      border: none;
-      color: #e6eef8;
-      font-weight: 600;
-      text-align: center;
-      width: 100%;
-    }
-
-    .node .meta {
-      font-size: 12px;
-      color: var(--muted);
-      text-align: center;
-      margin-top: 4px;
-    }
-
-    .node .actions {
-      display: flex;
-      gap: 6px;
-      justify-content: center;
-      margin-top: 6px;
-    }
-
-    .node .actions button {
-      padding: 6px;
-      border-radius: 6px;
-      font-size: 12px;
-    }
-
-    .parent-bar {
-      stroke: #9fbffb;
-      stroke-width: 4;
-      stroke-linecap: round;
-    }
-
-    .connector {
-      stroke: #9fbffb;
-      stroke-width: 2;
-      stroke-linecap: round;
-    }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Arbre Généalogique — Barres Parents</title>
+<style>
+:root{
+  --bg:#0b1220; --panel:#0f172a; --accent:#3b82f6; --muted:#94a3b8; --danger:#ef4444;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--bg);color:#e6eef8;overflow:hidden}
+#toolbar{position:fixed;left:12px;top:12px;z-index:60;display:flex;gap:8px;align-items:center}
+button{background:linear-gradient(180deg,var(--panel),#071028);border:1px solid rgba(255,255,255,0.03);color:#e6eef8;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px}
+#status{margin-left:8px;color:var(--muted);font-size:13px}
+#viewport{position:fixed;inset:0;overflow:hidden}
+#scene{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+#canvas{position:relative;width:3000px;height:2000px}
+svg{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.node{
+  position:absolute;min-width:140px;padding:8px;border-radius:10px;background:linear-gradient(180deg,#071026,#0b1220);
+  border:2px solid rgba(255,255,255,0.03);box-shadow:0 8px 20px rgba(2,6,23,0.6);cursor:grab;user-select:none;
+}
+.node.selected{border-color:var(--accent);box-shadow:0 10px 30px rgba(59,130,246,0.12)}
+.node .head{display:flex;gap:8px;align-items:center;justify-content:center}
+.node img{width:36px;height:36px;border-radius:6px;object-fit:cover;border:1px solid rgba(255,255,255,0.04)}
+.node input.name{background:transparent;border:none;color:#e6eef8;font-weight:600;text-align:center;width:100%}
+.node .meta{font-size:12px;color:var(--muted);text-align:center;margin-top:4px}
+.node .actions{display:flex;gap:6px;justify-content:center;margin-top:6px}
+.node .actions button{padding:6px;border-radius:6px;font-size:12px}
+.parent-bar{stroke:#9fbffb;stroke-width:4;stroke-linecap:round}
+.connector{stroke:#9fbffb;stroke-width:2;stroke-linecap:round}
+.small{font-size:12px;color:var(--muted)}
+.footer{position:fixed;right:12px;bottom:12px;color:var(--muted);font-size:13px}
+</style>
 </head>
 <body>
-  <div id="toolbar">
-    <button id="add">Ajouter</button>
-    <button id="export">Exporter JSON</button>
-    <button id="import">Importer JSON</button>
-    <span id="status">Prêt</span>
+
+<div id="toolbar">
+  <button id="addBtn">➕ Ajouter</button>
+  <button id="linkParentBtn">👨‍👩‍👧 Lier parent</button>
+  <button id="linkPartnerBtn">❤️ Lier conjoint</button>
+  <button id="autoBtn">🌳 Auto</button>
+  <button id="exportBtn">💾 Export</button>
+  <button id="importBtn">📂 Import</button>
+  <div id="status" class="small">Prêt</div>
+</div>
+
+<div id="viewport">
+  <div id="scene">
+    <svg id="links"></svg>
+    <div id="canvas"></div>
   </div>
-  <div id="viewport">
-    <div id="scene">
-      <div id="canvas"></div>
-      <svg id="connections"></svg>
-    </div>
-  </div>
+</div>
 
-  <script>
-    // Code JavaScript original (inchangé)
-    let data = [];
-    let idCounter = 1;
-    let selectedNode = null;
-    let offsetX, offsetY, isDragging = false;
-    let scale = 1, translateX = 0, translateY = 0;
+<div class="footer small">Raccourcis: A Ajouter · P Lier parent · C Lier conjoint · Delete Supprimer · Esc Annuler mode</div>
 
-    const canvas = document.getElementById('canvas');
-    const connections = document.getElementById('connections');
-    const statusEl = document.getElementById('status');
+<script>
+let data = [];
+let idCounter = 1;
+let selectedId = null;
+let mode = null;
+let linkSourceId = null;
 
-    document.getElementById('add').onclick = () => {
-      const name = prompt('Nom de la personne :');
-      if (name) {
-        addPerson({ name, x: 300, y: 200 });
-        render();
-      }
+let scale = 1, panX = 0, panY = 0;
+const scene = document.getElementById('scene');
+const canvas = document.getElementById('canvas');
+const svg = document.getElementById('links');
+const status = document.getElementById('status');
+
+const get = id => data.find(d=>d.id===id);
+const saveToStorage = ()=>{ try{ localStorage.setItem('family_bar_tree', JSON.stringify(data)); }catch(e){} };
+const loadFromStorage = ()=>{ try{ const raw = localStorage.getItem('family_bar_tree'); if(raw){ data = JSON.parse(raw); idCounter = data.reduce((m,p)=>Math.max(m,p.id),0)+1; } }catch(e){} };
+
+document.getElementById('addBtn').onclick = ()=>{ addPerson(); saveToStorage(); render(); };
+document.getElementById('linkParentBtn').onclick = ()=>{ if(!selectedId){ alert('Sélectionne un parent'); return } mode='linkParent'; linkSourceId=selectedId; status.textContent='Sélectionne l’enfant'; };
+document.getElementById('linkPartnerBtn').onclick = ()=>{ if(!selectedId){ alert('Sélectionne une personne'); return } mode='linkPartner'; linkSourceId=selectedId; status.textContent='Sélectionne le conjoint'; };
+document.getElementById('autoBtn').onclick = ()=>{ autoLayout(); saveToStorage(); render(); };
+document.getElementById('exportBtn').onclick = exportJSON;
+document.getElementById('importBtn').onclick = importJSON;
+
+window.addEventListener('keydown', e=>{
+  if(e.key==='a' || e.key==='A'){ addPerson(); saveToStorage(); render(); }
+  if(e.key==='p' || e.key==='P'){ if(selectedId){ mode='linkParent'; linkSourceId=selectedId; status.textContent='Sélectionne l’enfant'; } }
+  if(e.key==='c' || e.key==='C'){ if(selectedId){ mode='linkPartner'; linkSourceId=selectedId; status.textContent='Sélectionne le conjoint'; } }
+  if(e.key==='Escape'){ mode=null; linkSourceId=null; status.textContent=''; render(); }
+  if(e.key==='Delete' && selectedId!==null){ if(confirm('Supprimer cette personne ?')){ removePerson(selectedId); saveToStorage(); selectedId=null; render(); } }
+});
+
+function addPerson(opts){
+  const p = Object.assign({
+    id: idCounter++,
+    name: 'Nom',
+    date: '',
+    x: 200 + Math.random()*300,
+    y: 120 + Math.random()*200,
+    parents: [],
+    children: [],
+    spouse: null,
+    photo: null
+  }, opts||{});
+  data.push(p);
+  return p;
+}
+
+function removePerson(pid){
+  data = data.filter(p=>p.id!==pid);
+  data.forEach(p=>{
+    p.parents = p.parents.filter(x=>x!==pid);
+    p.children = p.children.filter(x=>x!==pid);
+    if(p.spouse===pid) p.spouse=null;
+  });
+  saveToStorage();
+}
+
+function addChildOf(parentId){
+  const parent = get(parentId);
+  const parents = parent.spouse ? [parentId, parent.spouse] : [parentId];
+  const child = addPerson({ name:'Enfant', x: parent.x + 40, y: parent.y + 160, parents: parents });
+  parents.forEach(pid=>{
+    const p = get(pid);
+    if(p && !p.children.includes(child.id)) p.children.push(child.id);
+  });
+  saveToStorage();
+  render();
+}
+
+function addSpouse(pid){
+  const p = get(pid);
+  if(!p || p.spouse) return;
+  const spouse = addPerson({ name:'Conjoint', x: p.x + 160, y: p.y, spouse: pid });
+  p.spouse = spouse.id;
+  saveToStorage();
+  render();
+}
+
+function handleNodeClick(targetId){
+  if(mode==='linkParent' && linkSourceId){
+    const parent = get(linkSourceId), child = get(targetId);
+    if(parent && child && parent.id!==child.id){
+      if(!child.parents.includes(parent.id)) child.parents.push(parent.id);
+      if(!parent.children.includes(child.id)) parent.children.push(child.id);
+      saveToStorage();
+    }
+    mode=null; linkSourceId=null; status.textContent='';
+    render();
+    return;
+  }
+  if(mode==='linkPartner' && linkSourceId){
+    const a = get(linkSourceId), b = get(targetId);
+    if(a && b && a.id!==b.id){
+      a.spouse = b.id; b.spouse = a.id;
+      saveToStorage();
+    }
+    mode=null; linkSourceId=null; status.textContent='';
+    render();
+    return;
+  }
+  selectedId = targetId;
+  render();
+}
+
+function render(){
+  canvas.innerHTML = '';
+  svg.innerHTML = '';
+
+  const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
+  svg.appendChild(defs);
+
+  const drawnPairs = new Set();
+
+  data.forEach(child=>{
+    if(!child.parents || child.parents.length < 2) return;
+    const parents = child.parents.map(get).filter(Boolean);
+    if(parents.length < 2) return;
+
+    const ids = parents.map(p=>p.id).sort((a,b)=>a-b);
+    const key = ids.join('-');
+
+    const left = parents.reduce((m,p)=> p.x < m.x ? p : m, parents[0]);
+    const right = parents.reduce((m,p)=> p.x > m.x ? p : m, parents[0]);
+
+    const yBar = Math.min(left.y, right.y) + 48;
+    const x1 = left.x + 70;
+    const x2 = right.x + 70;
+    const midX = (x1 + x2) / 2;
+
+    if(!drawnPairs.has(key)){
+      drawnPairs.add(key);
+
+      const bar = document.createElementNS('http://www.w3.org/2000/svg','line');
+      bar.setAttribute('x1', x1);
+      bar.setAttribute('y1', yBar);
+      bar.setAttribute('x2', x2);
+      bar.setAttribute('y2', yBar);
+      bar.setAttribute('class','parent-bar');
+      svg.appendChild(bar);
+
+      const stubL = document.createElementNS('http://www.w3.org/2000/svg','line');
+      stubL.setAttribute('x1', left.x + 70);
+      stubL.setAttribute('y1', left.y + 44);
+      stubL.setAttribute('x2', left.x + 70);
+      stubL.setAttribute('y2', yBar);
+      stubL.setAttribute('class','connector');
+      svg.appendChild(stubL);
+
+      const stubR = document.createElementNS('http://www.w3.org/2000/svg','line');
+      stubR.setAttribute('x1', right.x + 70);
+      stubR.setAttribute('y1', right.y + 44);
+      stubR.setAttribute('x2', right.x + 70);
+      stubR.setAttribute('y2', yBar);
+      stubR.setAttribute('class','connector');
+      svg.appendChild(stubR);
+    }
+
+    const childTopX = child.x + 70;
+    const childTopY = child.y;
+    const midY = (yBar + childTopY) / 2;
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    const d = `M ${midX} ${yBar} C ${midX} ${midY} ${childTopX} ${midY} ${childTopX} ${childTopY}`;
+    path.setAttribute('d', d);
+    path.setAttribute('class','connector');
+    svg.appendChild(path);
+  });
+
+  data.forEach(parent=>{
+    parent.children.forEach(cid=>{
+      const child = get(cid);
+      if(!child) return;
+      if(child.parents && child.parents.length >= 2) return;
+
+      const x1 = parent.x + 70, y1 = parent.y + 44;
+      const x2 = child.x + 70, y2 = child.y;
+      const midY = (y1 + y2) / 2;
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      const d = `M ${x1} ${y1} C ${x1} ${midY} ${x2} ${midY} ${x2} ${y2}`;
+      path.setAttribute('d', d);
+      path.setAttribute('class','connector');
+      svg.appendChild(path);
+    });
+  });
+
+  data.forEach(p=>{
+    const div = document.createElement('div');
+    div.className = 'node' + (p.id===selectedId ? ' selected' : '');
+    div.style.left = p.x + 'px';
+    div.style.top = p.y + 'px';
+    div.dataset.id = p.id;
+
+    const head = document.createElement('div'); head.className='head';
+    const img = document.createElement('img');
+    img.src = p.photo || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72"><rect width="100%" height="100%" fill="%230b1220"/><text x="50%" y="50%" fill="%23cbd5e1" font-size="12" font-family="Arial" dominant-baseline="middle" text-anchor="middle">Photo</text></svg>';
+    head.appendChild(img);
+
+    const nameInput = document.createElement('input');
+    nameInput.className='name';
+    nameInput.value = p.name;
+    nameInput.addEventListener('input', e=>{ p.name = e.target.value; saveToStorage(); });
+    nameInput.addEventListener('mousedown', e=> e.stopPropagation());
+    head.appendChild(nameInput);
+    div.appendChild(head);
+
+    const meta = document.createElement('div'); meta.className='meta'; meta.textContent = p.date || '';
+    div.appendChild(meta);
+
+    const actions = document.createElement('div'); actions.className='actions';
+    const childBtn = document.createElement('button'); childBtn.textContent='🧬 Enfant'; childBtn.onclick = (e)=>{ e.stopPropagation(); addChildOf(p.id); };
+    const spouseBtn = document.createElement('button'); spouseBtn.textContent='💍 Conjoint'; spouseBtn.onclick = (e)=>{ e.stopPropagation(); addSpouse(p.id); };
+    const photoBtn = document.createElement('button'); photoBtn.textContent='🖼️ Photo'; photoBtn.onclick = (e)=>{ e.stopPropagation(); uploadPhoto(p.id); };
+    const delBtn = document.createElement('button'); delBtn.textContent='❌'; delBtn.style.background='var(--danger)'; delBtn.onclick = (e)=>{ e.stopPropagation(); if(confirm('Supprimer ?')){ removePerson(p.id); saveToStorage(); render(); } };
+    actions.appendChild(childBtn); actions.appendChild(spouseBtn); actions.appendChild(photoBtn); actions.appendChild(delBtn);
+    div.appendChild(actions);
+
+    div.addEventListener('click', e=>{ e.stopPropagation(); handleNodeClick(p.id); });
+
+    let dragging=false, dx=0, dy=0;
+    div.addEventListener('mousedown', e=>{
+      if(e.button!==0) return;
+      e.stopPropagation();
+      dragging=true;
+      dx = e.offsetX; dy = e.offsetY;
+      div.style.cursor='grabbing';
+      document.body.style.userSelect='none';
+    });
+    window.addEventListener('mousemove', e=>{
+      if(!dragging) return;
+      const rect = scene.getBoundingClientRect();
+      const sx = (e.clientX - rect.left - panX) / scale;
+      const sy = (e.clientY - rect.top - panY) / scale;
+      p.x = Math.round(sx - dx);
+      p.y = Math.round(sy - dy);
+      render();
+    });
+    window.addEventListener('mouseup', e=>{
+      if(dragging){ dragging=false; div.style.cursor='grab'; document.body.style.userSelect='auto'; saveToStorage(); }
+    });
+
+    canvas.appendChild(div);
+  });
+
+  updateTransform();
+}
+
+function updateTransform(){
+  scene.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+  svg.setAttribute('width', canvas.offsetWidth);
+  svg.setAttribute('height', canvas.offsetHeight);
+}
+
+document.getElementById('viewport').addEventListener('wheel', e=>{
+  e.preventDefault();
+  const rect = scene.getBoundingClientRect();
+  const mx = (e.clientX - rect.left - panX) / scale;
+  const my = (e.clientY - rect.top - panY) / scale;
+  const delta = -e.deltaY * 0.0015;
+  const newScale = Math.min(2.5, Math.max(0.3, scale * (1 + delta)));
+  panX = e.clientX - rect.left - mx * newScale;
+  panY = e.clientY - rect.top - my * newScale;
+  scale = newScale;
+  updateTransform();
+});
+
+let isPanning=false, panStart=null;
+scene.addEventListener('mousedown', e=>{
+  if(e.target !== scene && e.target !== canvas && e.target.tagName !== 'SVG') return;
+  isPanning = true;
+  panStart = {x: e.clientX - panX, y: e.clientY - panY};
+  document.body.style.cursor='grabbing';
+});
+window.addEventListener('mousemove', e=>{
+  if(!isPanning) return;
+  panX = e.clientX - panStart.x;
+  panY = e.clientY - panStart.y;
+  updateTransform();
+});
+window.addEventListener('mouseup', e=>{
+  isPanning=false; document.body.style.cursor='auto';
+});
+
+function autoLayout(){
+  const roots = data.filter(p=>p.parents.length===0);
+  const visited = new Set();
+  const spacingX = 220, spacingY = 140;
+  let startX = 80;
+
+  function place(node, x, y){
+    if(!node || visited.has(node.id)) return;
+    node.x = x; node.y = y; visited.add(node.id);
+    if(node.spouse){
+      const sp = get(node.spouse);
+      if(sp && !visited.has(sp.id)){ sp.x = x + 160; sp.y = y; visited.add(sp.id); }
+    }
+    const children = node.children.map(get).filter(Boolean);
+    children.forEach((c,i)=>{
+      place(c, x + (i - (children.length-1)/2) * spacingX, y + spacingY);
+    });
+  }
+
+  roots.forEach((r,i)=> place(r, startX + i*360, 80));
+
+  let extraX = startX;
+  data.forEach(p=>{ if(!visited.has(p.id)){ place(p, extraX, 80 + Math.random()*200); extraX += 200; } });
+  saveToStorage();
+}
+
+function exportJSON(){
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'arbre_bar_parents.json'; a.click();
+}
+
+function importJSON(){
+  const input = document.createElement('input'); input.type='file'; input.accept='application/json';
+  input.onchange = e=>{
+    const file = e.target.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ev=>{
+      try{
+        const parsed = JSON.parse(ev.target.result);
+        if(Array.isArray(parsed)){
+          data = parsed;
+          idCounter = data.reduce((m,p)=>Math.max(m,p.id),0)+1;
+          saveToStorage();
+          render();
+        } else alert('Fichier invalide');
+      }catch(err){ alert('Erreur lecture JSON'); }
     };
+    reader.readAsText(file);
+  };
+  input.click();
+}
 
-    document.getElementById('export').onclick = exportJSON;
-    document.getElementById('import').onclick = importJSON;
+function uploadPhoto(pid){
+  const input = document.createElement('input'); input.type='file'; input.accept='image/*';
+  input.onchange = e=>{
+    const file = e.target.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ev=>{
+      const p = get(pid); if(p){ p.photo = ev.target.result; saveToStorage(); render(); }
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
 
-    function get(id) {
-      return data.find(p => p.id === id);
-    }
+(function seed(){
+  loadFromStorage();
+  if(data.length===0){
+    const a = addPerson({name:'Alice', x:200, y:80});
+    const b = addPerson({name:'Bob', x:360, y:80});
+    a.spouse = b.id; b.spouse = a.id;
+    const c = addPerson({name:'Charlie', x:260, y:240, parents:[a.id,b.id]});
+    a.children.push(c.id); b.children.push(c.id);
+    const d = addPerson({name:'Diane', x:520, y:80});
+    const e = addPerson({name:'Eve', x:680, y:80});
+    d.spouse = e.id; e.spouse = d.id;
+    const f = addPerson({name:'Fils', x:600, y:240, parents:[d.id,e.id]});
+    d.children.push(f.id); e.children.push(f.id);
+    saveToStorage();
+  }
+  render();
+})();
+</script>
 
-    function addPerson({ name, x, y, parents = [] }) {
-      const person = {
-        id: idCounter++,
-        name,
-        x,
-        y,
-        parents,
-        children: [],
-        spouse: null,
-        photo: null
-      };
-      data.push(person);
-      saveToStorage();
-      return person;
-    }
-
-    function saveToStorage() {
-      localStorage.setItem('arbreData', JSON.stringify(data));
-    }
-
-    function loadFromStorage() {
-      const saved = localStorage.getItem('arbreData');
-      if (saved) {
-        data = JSON.parse(saved);
-        idCounter = data.reduce((max, p) => Math.max(max, p.id), 0) + 1;
-      }
-    }
-
-    function render() {
-      canvas.innerHTML = '';
-      connections.innerHTML = '';
-
-      data.forEach(person => {
-        const node = document.createElement('div');
-        node.className = `node${selectedNode === person.id ? ' selected' : ''}`;
-        node.style.left = `${person.x}px`;
-        node.style.top = `${person.y}px`;
-
-        node.innerHTML = `
-          <div class="head">
-            ${person.photo ? `<img src="${person.photo}" />` : '<div style="width:36px;height:36px;border-radius:6px;background:var(--panel)"></div>'}
-            <input class="name" value="${person.name}" />
-          </div>
-          <div class="meta">ID: ${person.id}</div>
-          <div class="actions">
-            <button onclick="selectParent(${person.id})">Parents</button>
-            <button onclick="uploadPhoto(${person.id})">Photo</button>
-          </div>
-        `;
-
-        node.onmousedown = (e) => {
-          if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') {
-            selectedNode = person.id;
-            offsetX = e.clientX - person.x;
-            offsetY = e.clientY - person.y;
-            isDragging = true;
-            render();
-          }
-        };
-
-        canvas.appendChild(node);
-      });
-
-      // Dessiner les connexions
-      data.forEach(person => {
-        if (person.spouse) {
-          const spouse = get(person.spouse);
-          if (spouse) {
-            const bar = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            bar.setAttribute('class', 'parent-bar');
-            bar.setAttribute('x1', person.x + 70);
-            bar.setAttribute('y1', person.y + 40);
-            bar.setAttribute('x2', spouse.x + 70);
-            bar.setAttribute('y2', spouse.y + 40);
-            connections.appendChild(bar);
-
-            person.children.forEach(childId => {
-              const child = get(childId);
-              if (child) {
-                const connector = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                connector.setAttribute('class', 'connector');
-                connector.setAttribute('x1', (person.x + spouse.x) / 2 + 70);
-                connector.setAttribute('y1', (person.y + spouse.y) / 2 + 40);
-                connector.setAttribute('x2', child.x + 70);
-                connector.setAttribute('y2', child.y);
-                connections.appendChild(connector);
-              }
-            });
-          }
-        }
-      });
-    }
-
-    function selectParent(id) {
-      const person = get(id);
-      if (!person) return;
-
-      const parentIds = prompt('IDs des parents (séparés par des virgules) :')?.split(',').map(Number);
-      if (!parentIds) return;
-
-      person.parents = parentIds;
-
-      parentIds.forEach(parentId => {
-        const parent = get(parentId);
-        if (parent && !parent.children.includes(id)) {
-          parent.children.push(id);
-        }
-      });
-
-      saveToStorage();
-      render();
-    }
-
-    function exportJSON() {
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'arbre_bar_parents.json';
-      a.click();
-    }
-
-    function importJSON() {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'application/json';
-      input.onchange = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          try {
-            const parsed = JSON.parse(ev.target.result);
-            if (Array.isArray(parsed)) {
-              data = parsed;
-              idCounter = data.reduce((max, p) => Math.max(max, p.id), 0) + 1;
-              saveToStorage();
-              render();
-            } else {
-              alert('Fichier invalide');
-            }
-          } catch (err) {
-            alert('Erreur lecture JSON');
-          }
-        };
-        reader.readAsText(file);
-      };
-      input.click();
-    }
-
-    function uploadPhoto(pid) {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.onchange = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const person = get(pid);
-          if (person) {
-            person.photo = ev.target.result;
-            saveToStorage();
-            render();
-          }
-        };
-        reader.readAsDataURL(file);
-      };
-      input.click();
-    }
-
-    (function seed() {
-      loadFromStorage();
-      if (data.length === 0) {
-        const alice = addPerson({ name: 'Alice', x: 200, y: 80 });
-        const bob = addPerson({ name: 'Bob', x: 360, y: 80 });
-        alice.spouse = bob.id;
-        bob.spouse = alice.id;
-        const charlie = addPerson({ name: 'Charlie', x: 260, y: 240, parents: [alice.id, bob.id] });
-        alice.children.push(charlie.id);
-        bob.children.push(charlie.id);
-
-        const diane = addPerson({ name: 'Diane', x: 520, y: 80 });
-        const eve = addPerson({ name: 'Eve', x: 680, y: 80 });
-        diane.spouse = eve.id;
-        eve.spouse = diane.id;
-        const fils = addPerson({ name: 'Fils', x: 600, y: 240, parents: [diane.id, eve.id] });
-        diane.children.push(fils.id);
-        eve.children.push(fils.id);
-
-        saveToStorage();
-      }
-      render();
-    })();
-  </script>
 </body>
 </html>
